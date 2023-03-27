@@ -1,37 +1,63 @@
-version: '3'
-volumes:
-  data:
+version: "3.7"
+
 services:
-  laravel-app:
-    build: .
-    ports:
-      - "8080:80"
-    volumes:
-      - ./:/usr/share/nginx
-    networks:
-      - app-networks
-  db:
-    image: mysql:latest
-    ports:
-      - "3306:3306"
-    volumes:
-      - data:/var/lib/mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=password
-      - MYSQL_DATABASE=app_development
-    networks:
-      - app-networks
-      
-  app:
-    image: phpmyadmin/phpmyadmin:latest
-    links:
-      - db
-    ports:
-      - 8081:80
-    environment:
-      - PMA_ARBITRARY=1
-    networks:
-      - app-networks
+    # image project
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        working_dir: /var/www/
+        volumes:
+            - ./:/var/www
+        depends_on:
+            - redis
+        networks:
+            - laravel
+
+    # nginx
+    nginx:
+        image: nginx:alpine
+        restart: unless-stopped
+        ports:
+            - "80:80"
+        volumes:
+            - ./:/var/www
+            - ./docker/nginx/:/etc/nginx/conf.d/
+        networks:
+            - laravel
+
+    # db mysql
+    db:
+        image: mysql:latest
+        restart: unless-stopped
+        ports:
+        - "3306:3306"
+        volumes:
+        - ./.docker/mysql/dbdata:/var/lib/db
+        environment:
+        - MYSQL_ROOT_PASSWORD=password
+        - MYSQL_DATABASE=app_development
+        networks:
+            - laravel
+            
+    myadmin:
+        image: phpmyadmin/phpmyadmin:latest
+        links:
+        - db
+        ports:
+        - 8081:80
+        environment:
+        - PMA_ARBITRARY=1
+        networks:
+            - laravel
+
+    # redis
+    redis:
+        image: redis:latest
+        networks:
+            - laravel
+
 networks:
-  app-networks:
-    driver: bridge
+    laravel:
+        driver: bridge
